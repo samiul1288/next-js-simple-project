@@ -5,23 +5,63 @@ const fs = require("fs");
 const path = require("path");
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
-app.use(cors({ origin: "http://localhost:3000", credentials: true }));
+/**
+ * ✅ CORS configuration
+ * - Local: http://localhost:3000
+ * - Production: your Vercel domain (set via env or hardcode)
+ *
+ * Recommended:
+ * Set RENDER env: FRONTEND_URL = https://next-js-simple-project-cr7a.vercel.app
+ */
+const allowedOrigins = [
+  "http://localhost:3000",
+  process.env.FRONTEND_URL, // e.g. https://next-js-simple-project-cr7a.vercel.app
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // allow server-to-server requests (no origin), health checks, etc.
+      if (!origin) return cb(null, true);
+
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use(cookieParser());
 
+// -------------------- DB --------------------
 const DB_PATH = path.join(__dirname, "data", "items.json");
 
-function readItems() {
-  const raw = fs.readFileSync(DB_PATH, "utf-8");
-  return JSON.parse(raw);
+function ensureDbExists() {
+  const dir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify([], null, 2));
+  }
 }
+
+function readItems() {
+  ensureDbExists();
+  const raw = fs.readFileSync(DB_PATH, "utf-8");
+  return JSON.parse(raw || "[]");
+}
+
 function writeItems(items) {
+  ensureDbExists();
   fs.writeFileSync(DB_PATH, JSON.stringify(items, null, 2));
 }
 
-// Health
+// -------------------- ROUTES --------------------
+
+// Health check
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // List items
@@ -69,6 +109,19 @@ app.post("/api/items", (req, res) => {
   res.status(201).json(newItem);
 });
 
+// Optional: simple root message
+app.get("/", (req, res) => {
+  res.json({ message: "NextItems Express API is running" });
+});
+
+// Global error handler (nice for CORS errors)
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ message: err.message || "Server error" });
+});
+
+// -------------------- START --------------------
 app.listen(PORT, () => {
-  console.log(`Express API running on http://localhost:${PORT}`);
+  console.log(`Express API running on port ${PORT}`);
+  console.log("Allowed origins:", allowedOrigins);
 });

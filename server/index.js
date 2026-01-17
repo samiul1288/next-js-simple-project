@@ -7,18 +7,18 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ✅ CORS (works on Render + Vercel + Local)
-const corsOptions = {
-  origin: true,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-auth"],
-};
+// ✅ CORS: allow any origin + allow custom header x-auth
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-auth"],
+  })
+);
 
-app.use(cors(corsOptions));
-
-// ✅ Express 5 এ "*" দিলে error হয়, তাই regex ব্যবহার করছি
-app.options(/.*/, cors(corsOptions));
+// ✅ Express 5 এ "*" issue avoid
+app.options("/*", cors());
 
 app.use(express.json());
 app.use(cookieParser());
@@ -45,22 +45,16 @@ function writeItems(items) {
 }
 
 // -------------------- ROUTES --------------------
-
-// Health
+app.get("/", (req, res) =>
+  res.json({ message: "NextItems Express API running" })
+);
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-// Root
-app.get("/", (req, res) =>
-  res.json({ message: "NextItems Express API is running" })
-);
-
-// List items
 app.get("/api/items", (req, res) => {
   const items = readItems();
   res.json(items);
 });
 
-// Single item
 app.get("/api/items/:id", (req, res) => {
   const items = readItems();
   const found = items.find((x) => x.id === req.params.id);
@@ -68,13 +62,12 @@ app.get("/api/items/:id", (req, res) => {
   res.json(found);
 });
 
-// Create item (protected via cookie OR header)
 app.post("/api/items", (req, res) => {
-  const authHeader = req.headers["authorization"];
+  // ✅ Render API will trust x-auth from Next.js proxy
   const authed =
     req.cookies?.auth === "1" ||
     req.headers["x-auth"] === "1" ||
-    authHeader === "Bearer 1";
+    req.headers["authorization"] === "Bearer 1";
 
   if (!authed) return res.status(401).json({ message: "Unauthorized" });
 
@@ -106,11 +99,8 @@ app.post("/api/items", (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("Server error:", err);
+  console.error(err);
   res.status(500).json({ message: err.message || "Server error" });
 });
 
-// -------------------- START --------------------
-app.listen(PORT, () => {
-  console.log(`Express API running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Express API running on port ${PORT}`));

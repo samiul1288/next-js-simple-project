@@ -1,18 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-function hasAuthCookie() {
-  if (typeof document === "undefined") return false;
-  // auth=1 থাকলে true
-  return document.cookie.split(";").some((c) => c.trim().startsWith("auth=1"));
-}
-
 export default function AddItemPage() {
   const router = useRouter();
-  const base = process.env.NEXT_PUBLIC_API_URL!;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -22,55 +15,46 @@ export default function AddItemPage() {
   const [rating, setRating] = useState<number>(4.5);
   const [loading, setLoading] = useState(false);
 
-  // optional: page load এ cookie না থাকলে login এ পাঠিয়ে দেবে
-  useEffect(() => {
-    const authed = hasAuthCookie();
-    if (!authed) {
-      router.replace("/login?next=/add-item");
-    }
-  }, [router]);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
-    const authed = hasAuthCookie();
+    try {
+      const res = await fetch("/api/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // same-origin => cookie automatically handled
+        body: JSON.stringify({
+          name,
+          description,
+          price: Number(price),
+          image,
+          category,
+          rating: Number(rating),
+        }),
+      });
 
-    const res = await fetch(`${base}/api/items`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // ✅ Cross-domain fix: cookie না গেলেও header যাবে
-        "x-auth": authed ? "1" : "0",
-      },
-      // credentials include রাখলাম—local dev এ একই domain হলে cookie যাবে
-      credentials: "include",
-      body: JSON.stringify({
-        name,
-        description,
-        price,
-        image,
-        category,
-        rating,
-      }),
-    });
+      setLoading(false);
 
-    setLoading(false);
+      if (res.status === 401) {
+        toast.error("Please login first");
+        router.push("/login?next=/add-item");
+        return;
+      }
 
-    if (res.status === 401) {
-      toast.error("Login required");
-      router.push("/login?next=/add-item");
-      return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.message || "Failed to create item");
+        return;
+      }
+
+      toast.success("Item created successfully!");
+      router.push("/items");
+      router.refresh();
+    } catch (err) {
+      setLoading(false);
+      toast.error("Network error");
     }
-
-    if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      toast.error(msg || "Failed to create item");
-      return;
-    }
-
-    toast.success("Item created successfully!");
-    router.push("/items");
   }
 
   return (
@@ -128,6 +112,7 @@ export default function AddItemPage() {
               onChange={(e) => setCategory(e.target.value)}
             />
           </div>
+
           <div>
             <label className="text-sm font-medium">Rating</label>
             <input

@@ -7,22 +7,18 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-/**
- * ✅ CORS (NO FRONTEND_URL needed)
- * - origin: true => allow any requesting origin dynamically
- * - credentials: true => allow cookies/credentials (for local dev)
- */
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-auth"],
-  })
-);
+// ✅ CORS (works on Render + Vercel + Local)
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-auth"],
+};
 
-// Ensure preflight works everywhere
-app.options("*", cors({ origin: true, credentials: true }));
+app.use(cors(corsOptions));
+
+// ✅ Express 5 এ "*" দিলে error হয়, তাই regex ব্যবহার করছি
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());

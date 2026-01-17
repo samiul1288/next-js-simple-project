@@ -8,27 +8,13 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 /**
- * ✅ CORS configuration
- * - Local: http://localhost:3000
- * - Production: your Vercel domain (set via env or hardcode)
- *
- * Recommended:
- * Set RENDER env: FRONTEND_URL = https://next-js-simple-project-cr7a.vercel.app
+ * ✅ CORS (NO FRONTEND_URL needed)
+ * origin: true => request origin automatically allow
+ * credentials: true => cookie send/receive allowed
  */
-const allowedOrigins = [
-  "http://localhost:3000",
-  process.env.FRONTEND_URL, // e.g. https://next-js-simple-project-cr7a.vercel.app
-].filter(Boolean);
-
 app.use(
   cors({
-    origin: (origin, cb) => {
-      // allow server-to-server requests (no origin), health checks, etc.
-      if (!origin) return cb(null, true);
-
-      if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS blocked for origin: ${origin}`), false);
-    },
+    origin: true,
     credentials: true,
   })
 );
@@ -61,8 +47,13 @@ function writeItems(items) {
 
 // -------------------- ROUTES --------------------
 
-// Health check
+// Health
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+// Root
+app.get("/", (req, res) => {
+  res.json({ message: "NextItems Express API is running" });
+});
 
 // List items
 app.get("/api/items", (req, res) => {
@@ -109,12 +100,7 @@ app.post("/api/items", (req, res) => {
   res.status(201).json(newItem);
 });
 
-// Optional: simple root message
-app.get("/", (req, res) => {
-  res.json({ message: "NextItems Express API is running" });
-});
-
-// Global error handler (nice for CORS errors)
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ message: err.message || "Server error" });
@@ -123,5 +109,4 @@ app.use((err, req, res, next) => {
 // -------------------- START --------------------
 app.listen(PORT, () => {
   console.log(`Express API running on port ${PORT}`);
-  console.log("Allowed origins:", allowedOrigins);
 });

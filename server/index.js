@@ -7,7 +7,7 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ✅ CORS: allow any origin + allow custom header x-auth
+// ✅ CORS: allow any origin + allow cookies + allow x-auth header
 app.use(
   cors({
     origin: true,
@@ -17,8 +17,8 @@ app.use(
   })
 );
 
-// ✅ Express 5 এ "*" issue avoid
-app.options("/*", cors());
+// ✅ IMPORTANT: Express 5 এ app.options("*") / app.options("/*") দিবে না
+// app.options("/*", cors());  ❌ remove
 
 app.use(express.json());
 app.use(cookieParser());

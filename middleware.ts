@@ -7,6 +7,7 @@ export function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/add-item")) {
     const auth = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+
     if (auth !== "1") {
       const url = req.nextUrl.clone();
       url.pathname = "/login";

@@ -3,17 +3,14 @@ import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "./lib/auth";
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const auth = req.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-  if (pathname.startsWith("/add-item")) {
-    const auth = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-
-    if (auth !== "1") {
-      const url = req.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("next", "/add-item");
-      return NextResponse.redirect(url);
-    }
+  // Protect only /add-item routes
+  if (auth !== "1") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", req.nextUrl.pathname); // return to original page
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

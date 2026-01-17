@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1768652410985",
+    "name": "josim",
+    "description": "hugdfhljkhfgdlkhgf",
+    "price": 1.15,
+    "image": "https://www.freepik.com/free-vector/cute-panda-with-love-heart-cartoon-vector-icon-illustration-animal-love-icon-concept-isolated-flat_49484658.htm#fromView=keyword&page=1&position=0&uuid=912d86f6-f221-4edb-ae1c-64d89c4f47c6&query=Panda+love",
+    "category": "pet",
+    "rating": 4.5
+  },
+  {
+    "id": "1",
+    "name": "Starter Backpack",
+    "description": "Durable backpack for daily use.",
+    "price": 49.99,
+    "image": "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&q=80",
+    "category": "Bags",
+    "rating": 4.4
+  },
+  {
+    "id": "2",
+    "name": "Wireless Headphones",
+    "description": "Comfort fit with clear sound.",
+    "price": 89,
+    "image": "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=800&q=80",
+    "category": "Audio",
+    "rating": 4.6
+  }
+]

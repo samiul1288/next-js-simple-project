@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+
+function hasAuthCookie() {
+  if (typeof document === "undefined") return false;
+  // auth=1 থাকলে true
+  return document.cookie.split(";").some((c) => c.trim().startsWith("auth=1"));
+}
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -16,13 +22,28 @@ export default function AddItemPage() {
   const [rating, setRating] = useState<number>(4.5);
   const [loading, setLoading] = useState(false);
 
+  // optional: page load এ cookie না থাকলে login এ পাঠিয়ে দেবে
+  useEffect(() => {
+    const authed = hasAuthCookie();
+    if (!authed) {
+      router.replace("/login?next=/add-item");
+    }
+  }, [router]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
+    const authed = hasAuthCookie();
+
     const res = await fetch(`${base}/api/items`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // ✅ Cross-domain fix: cookie না গেলেও header যাবে
+        "x-auth": authed ? "1" : "0",
+      },
+      // credentials include রাখলাম—local dev এ একই domain হলে cookie যাবে
       credentials: "include",
       body: JSON.stringify({
         name,
@@ -37,12 +58,14 @@ export default function AddItemPage() {
     setLoading(false);
 
     if (res.status === 401) {
+      toast.error("Login required");
       router.push("/login?next=/add-item");
       return;
     }
 
     if (!res.ok) {
-      toast.error("Failed to create item");
+      const msg = await res.text().catch(() => "");
+      toast.error(msg || "Failed to create item");
       return;
     }
 

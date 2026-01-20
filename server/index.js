@@ -7,18 +7,15 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ✅ CORS: allow any origin + allow cookies + allow x-auth header
+// -------------------- CORS --------------------
 app.use(
   cors({
     origin: true,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-auth"],
-  })
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-internal-key"],
+  }),
 );
-
-// ✅ IMPORTANT: Express 5 এ app.options("*") / app.options("/*") দিবে না
-// app.options("/*", cors());  ❌ remove
 
 app.use(express.json());
 app.use(cookieParser());
@@ -29,14 +26,14 @@ const DB_PATH = path.join(__dirname, "data", "items.json");
 function ensureDbExists() {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_PATH))
+  if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify([], null, 2));
+  }
 }
 
 function readItems() {
   ensureDbExists();
-  const raw = fs.readFileSync(DB_PATH, "utf-8");
-  return JSON.parse(raw || "[]");
+  return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
 }
 
 function writeItems(items) {
@@ -46,30 +43,29 @@ function writeItems(items) {
 
 // -------------------- ROUTES --------------------
 app.get("/", (req, res) =>
-  res.json({ message: "NextItems Express API running" })
+  res.json({ message: "NextItems Express API running" }),
 );
+
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.get("/api/items", (req, res) => {
-  const items = readItems();
-  res.json(items);
+  res.json(readItems());
 });
 
 app.get("/api/items/:id", (req, res) => {
-  const items = readItems();
-  const found = items.find((x) => x.id === req.params.id);
-  if (!found) return res.status(404).json({ message: "Item not found" });
-  res.json(found);
+  const item = readItems().find((x) => x.id === req.params.id);
+  if (!item) return res.status(404).json({ message: "Item not found" });
+  res.json(item);
 });
 
+// -------------------- CREATE ITEM (PROTECTED) --------------------
 app.post("/api/items", (req, res) => {
-  // ✅ Render API will trust x-auth from Next.js proxy
-  const authed =
-    req.cookies?.auth === "1" ||
-    req.headers["x-auth"] === "1" ||
-    req.headers["authorization"] === "Bearer 1";
+  const internalKey = req.headers["x-internal-key"];
 
-  if (!authed) return res.status(401).json({ message: "Unauthorized" });
+  // ✅ ONLY server-to-server auth
+  if (internalKey !== process.env.INTERNAL_API_KEY) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   const { name, description, price, image, category, rating } = req.body || {};
   if (!name || !description || typeof price !== "number") {
@@ -77,10 +73,8 @@ app.post("/api/items", (req, res) => {
   }
 
   const items = readItems();
-  const id = String(Date.now());
-
   const newItem = {
-    id,
+    id: String(Date.now()),
     name,
     description,
     price,
@@ -97,10 +91,10 @@ app.post("/api/items", (req, res) => {
   res.status(201).json(newItem);
 });
 
-// Global error handler
+// -------------------- ERROR --------------------
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ message: err.message || "Server error" });
+  res.status(500).json({ message: "Server error" });
 });
 
 app.listen(PORT, () => console.log(`Express API running on port ${PORT}`));

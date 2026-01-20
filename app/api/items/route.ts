@@ -2,14 +2,42 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL!;
+const BASE = process.env.NEXT_PUBLIC_API_URL;
+
+export async function GET() {
+  if (!BASE) {
+    return NextResponse.json(
+      { message: "NEXT_PUBLIC_API_URL missing" },
+      { status: 500 },
+    );
+  }
+
+  const res = await fetch(`${BASE}/api/items`, { cache: "no-store" });
+  const data = await res.json().catch(() => []);
+  return NextResponse.json(data, { status: res.status });
+}
 
 export async function POST(req: Request) {
+  if (!BASE) {
+    return NextResponse.json(
+      { message: "NEXT_PUBLIC_API_URL missing" },
+      { status: 500 },
+    );
+  }
+
   const cookieStore = await cookies();
   const authed = cookieStore.get(AUTH_COOKIE_NAME)?.value === "1";
 
   if (!authed) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  // ✅ ensure INTERNAL_API_KEY exists
+  if (!process.env.INTERNAL_API_KEY) {
+    return NextResponse.json(
+      { message: "INTERNAL_API_KEY missing" },
+      { status: 500 },
+    );
   }
 
   const body = await req.json();
@@ -18,8 +46,7 @@ export async function POST(req: Request) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // ✅ (optional) internal secret header, নিচে Fix 3 এ বলেছি
-      "x-internal-key": process.env.INTERNAL_API_KEY || "",
+      "x-internal-key": process.env.INTERNAL_API_KEY,
     },
     body: JSON.stringify(body),
   });
